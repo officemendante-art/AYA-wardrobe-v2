@@ -3,11 +3,10 @@ import { Btn, Field, ScreenHeader } from "@/components/ui-bits";
 import { useStore } from "@/lib/store";
 
 export function SettingsScreen() {
-  const { status, darkMode, setDarkMode, fontSize, setFontSize, runCompiler, runBackup, loading } = useStore();
-  const [compilerResult, setCompilerResult] = useState<string | null>(null);
+  const { status, darkMode, setDarkMode, runBackup, loading } = useStore();
   const [backupResult, setBackupResult] = useState<string | null>(null);
 
-  const [geminiKey, setGeminiKey] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [keySavedMessage, setKeySavedMessage] = useState<string | null>(null);
 
   // Fetch settings from API on load
@@ -15,7 +14,7 @@ export function SettingsScreen() {
     fetch("/api/settings")
       .then((res) => res.json())
       .then((data) => {
-        if (data.gemini_api_key) setGeminiKey(data.gemini_api_key);
+        if (data.gemini_api_key) setApiKey(data.gemini_api_key);
       })
       .catch(console.error);
   }, []);
@@ -25,21 +24,12 @@ export function SettingsScreen() {
       await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gemini_api_key: geminiKey }),
+        body: JSON.stringify({ gemini_api_key: apiKey }),
       });
       setKeySavedMessage("API Key saved to SQLite Settings database.");
       setTimeout(() => setKeySavedMessage(null), 3000);
     } catch (e) {
       setKeySavedMessage("Error saving API key.");
-    }
-  };
-
-  const handleCompile = async () => {
-    try {
-      const result = await runCompiler();
-      setCompilerResult(`Done: ${result.rules} rules · ${result.research} research · ${result.flowEntries} flow entries`);
-    } catch (e) {
-      setCompilerResult(`Error: ${e instanceof Error ? e.message : "Unknown"}`);
     }
   };
 
@@ -93,13 +83,13 @@ export function SettingsScreen() {
         <div className="mono-label mb-2">API Configuration</div>
         <div className="surface p-3 space-y-3">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Configure your Gemini API Key. AYA OS will check here first, then fall back to the <code>GEMINI_API_KEY</code> environment variable if this is empty.
+            Configure your API Key. AYA OS will check here first, then fall back to the <code>API_KEY</code> environment variable if this is empty.
           </p>
           <input
             type="password"
-            value={geminiKey}
-            onChange={(e) => setGeminiKey(e.target.value)}
-            placeholder="AI Studio Gemini API Key"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="API Key"
             className="w-full rounded-xl border border-border bg-card px-3 py-3 text-sm outline-none"
           />
           {keySavedMessage && (
@@ -111,29 +101,7 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      {/* Knowledge Compiler */}
-      <section>
-        <div className="mono-label mb-2">Knowledge Compiler</div>
-        <div className="surface p-3 space-y-3">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Reads all source files (Identity Lock, Color System, Wardrobe Brain, color guidebook, research) and
-            populates the database. Safe to run repeatedly — deduplicates automatically.
-          </p>
-          {compilerResult && (
-            <div className={`text-xs ${compilerResult.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
-              {compilerResult}
-            </div>
-          )}
-          <Btn onClick={handleCompile} disabled={loading["compiler"]}>
-            {loading["compiler"] ? (
-              <span className="flex items-center gap-2">
-                <span className="h-3 w-3 animate-spin rounded-full border border-background border-t-transparent" />
-                Compiling...
-              </span>
-            ) : "Run Knowledge Compiler"}
-          </Btn>
-        </div>
-      </section>
+
 
       {/* Backup */}
       <section>
@@ -176,25 +144,11 @@ export function SettingsScreen() {
               {darkMode ? "On" : "Off"}
             </Btn>
           </div>
-          <div className="flex items-center justify-between p-3">
-            <span className="text-xs">Font Size</span>
-            <div className="flex gap-2">
-              {(["compact", "comfort", "large"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setFontSize(s)}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] uppercase tracking-wider ${fontSize === s ? "bg-foreground text-background" : "bg-secondary text-foreground"}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
       <p className="text-center text-[10px] text-muted-foreground">
-        AYA Fashion Intelligence OS v1.0 · SQLite · Gemini Vision
+        AYA Fashion Intelligence OS v1.0 • SQLite • AI Vision
       </p>
     </div>
   );
