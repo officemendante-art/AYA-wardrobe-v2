@@ -14,6 +14,7 @@ const DB_PATH = path.resolve(__dirname, "../data/aya.db");
 const SCHEMA_PATH = path.resolve(__dirname, "schema.sql");
 
 let _db: Database | null = null;
+let _SqlModule: any = null;
 
 // ─── Persist to disk ──────────────────────────────────────────────────────────
 
@@ -37,6 +38,8 @@ export async function initDb(): Promise<Database> {
     locateFile: (file: string) =>
       path.resolve(__dirname, "../node_modules/sql.js/dist", file),
   });
+
+  _SqlModule = SQL;
 
   // Load existing DB or create new
   if (fs.existsSync(DB_PATH)) {
@@ -150,8 +153,8 @@ export function restoreDb(sourcePath: string): void {
   // First backup current state
   backupDb();
   const fileBuffer = fs.readFileSync(sourcePath);
-  const SQL = (_db as any).db.constructor; // reuse loaded WASM
-  _db = new SQL(fileBuffer);
+  const SQL = _SqlModule; // reuse loaded WASM module
+  _db = new SQL.Database(fileBuffer);
   saveDb();
   log("success", "system", "Database restored", { source: sourcePath });
 }

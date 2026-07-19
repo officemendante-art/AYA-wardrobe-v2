@@ -132,7 +132,7 @@ Return valid JSON with this exact structure:
 }`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: "gemini-1.5-flash",
     contents: [{ text: prompt }],
     config: { responseMimeType: "application/json" },
   });
