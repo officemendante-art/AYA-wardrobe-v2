@@ -246,7 +246,7 @@ export async function runKnowledgeCompiler(basePath: string): Promise<{
   const extractedText = join("Wardrobe_Brain_extracted", "extracted_text.txt");
   research += compilePlainText(extractedText, "AYA Wardrobe Brain");
 
-  const flowDir = join("GOOGLE FLOW OUTFITS");
+  const flowDir = join("data", "images", "flow");
   const flowEntries = seedFlowArchive(flowDir);
 
   seedUnknownTerritory();

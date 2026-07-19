@@ -44,9 +44,12 @@ async function startServer() {
       log("info", "system", "Migrating FlowArchive to GalleryImages...");
       const archives = queryAll<any>("SELECT * FROM FlowArchive");
       for (const flow of archives) {
-        run(`INSERT OR IGNORE INTO GalleryImages (id, title, image_path, notes, source, created_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [flow.id, flow.filename, flow.image_path, flow.ai_description, 'Google Flow', flow.created_at]);
+        const existing = queryOne("SELECT id FROM GalleryImages WHERE title = ? AND source = 'Google Flow'", [flow.filename]);
+        if (!existing) {
+          run(`INSERT INTO GalleryImages (id, title, image_path, notes, source, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)`,
+              [flow.id, flow.filename, flow.image_path, flow.ai_description, 'Google Flow', flow.created_at]);
+        }
       }
       run("DROP TABLE IF EXISTS FlowDNA");
       run("DROP TABLE IF EXISTS FlowArchive");
