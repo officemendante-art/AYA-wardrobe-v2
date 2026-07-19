@@ -188,6 +188,23 @@ export function GalleryScreen() {
           </div>
         )}
 
+        {/* PERSISTENT FILTER BAR */}
+        <div className="no-scrollbar mb-6 flex w-full gap-2 overflow-x-auto pb-2">
+          {collectionPreviews.map((coll) => (
+            <button
+              key={coll.id}
+              onClick={() => setActiveCollection(coll.id)}
+              className={`shrink-0 rounded-full px-4 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors ${
+                activeCollection === coll.id
+                  ? "bg-foreground text-background"
+                  : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              {coll.name}
+            </button>
+          ))}
+        </div>
+
         {/* MASONRY GRID (Either Recent Photos or Filtered Photos) */}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
