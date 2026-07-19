@@ -32,7 +32,7 @@ export function Home() {
       {dbStats.length > 0 && (
         <section className="mb-5">
           <div className="mono-label mb-2">Database</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
             {dbStats.map((stat) => (
               <div
                 key={stat.label}
@@ -54,7 +54,7 @@ export function Home() {
 
 
       {/* Main Actions */}
-      <div className="mt-2 grid grid-cols-2 gap-3">
+      <div className="mt-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {tiles.map((tile) => (
           <button
             key={tile.label}

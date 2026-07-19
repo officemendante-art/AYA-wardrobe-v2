@@ -259,7 +259,7 @@ export function BottomNav() {
   const HIDDEN_ON: string[] = ["review", "details"];
   if (HIDDEN_ON.includes(screen.name)) return null;
   return (
-    <nav className="fixed bottom-0 left-1/2 z-30 w-full max-w-[440px] -translate-x-1/2 border-t border-border bg-background">
+    <nav className="fixed bottom-0 left-0 z-30 w-full border-t border-border bg-background md:hidden">
       <ul className="grid grid-cols-4">
         {NAV_ITEMS.map((it) => {
           const active = screen.name === it.key;
@@ -273,6 +273,37 @@ export function BottomNav() {
                 )}
               >
                 <span className="text-base leading-none">{it.icon}</span>
+                <span>{it.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+export function SidebarNav() {
+  const { screen, navigate } = useStore();
+  return (
+    <nav className="sticky top-0 hidden h-[100dvh] w-64 flex-col border-r border-border bg-background md:flex">
+      <div className="p-6">
+        <div className="font-serif text-2xl font-medium tracking-tight">AYA OS</div>
+        <div className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">Fashion Intelligence</div>
+      </div>
+      <ul className="flex flex-col gap-2 px-4 py-4">
+        {NAV_ITEMS.map((it) => {
+          const active = screen.name === it.key;
+          return (
+            <li key={it.key}>
+              <button
+                onClick={() => navigate({ name: it.key } as any)}
+                className={cn(
+                  "flex w-full items-center gap-4 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+                  active ? "bg-foreground text-background" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                )}
+              >
+                <span className="text-lg leading-none">{it.icon}</span>
                 <span>{it.label}</span>
               </button>
             </li>

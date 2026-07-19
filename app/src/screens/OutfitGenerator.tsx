@@ -61,8 +61,8 @@ export function OutfitGeneratorScreen() {
   };
 
   return (
-    <div className="screen-pad space-y-5">
-      <ScreenHeader title="Outfit Generator" subtitle="Decision Engine" />
+    <div className="screen-pad space-y-6 mx-auto max-w-2xl w-full">
+      <ScreenHeader title="Outfit Generator" subtitle="AI Personal Styling" />
 
       {/* Context selectors */}
       <Field label="Occasion">

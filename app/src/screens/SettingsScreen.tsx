@@ -51,7 +51,7 @@ export function SettingsScreen() {
   const counts = status?.counts;
 
   return (
-    <div className="screen-pad space-y-6">
+    <div className="screen-pad space-y-6 mx-auto max-w-2xl w-full">
       <ScreenHeader title="Settings" subtitle="AYA OS v1.0 Configuration" />
 
       {/* Database stats */}

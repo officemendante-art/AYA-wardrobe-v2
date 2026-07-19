@@ -37,7 +37,7 @@ export function CaptureScreen() {
   };
 
   return (
-    <div className="screen-pad space-y-4">
+    <div className="screen-pad space-y-4 mx-auto max-w-2xl w-full">
       <ScreenHeader title="Scan Cloth" subtitle="AI Vision Analysis" onBack={back} />
 
       <div className="surface flex min-h-[300px] items-center justify-center overflow-hidden text-center">

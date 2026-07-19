@@ -1,4 +1,4 @@
-import { BottomNav } from "@/components/ui-bits";
+import { BottomNav, SidebarNav } from "@/components/ui-bits";
 import { StoreProvider, useStore } from "@/lib/store";
 import { CaptureScreen } from "@/screens/Capture";
 import { Home } from "@/screens/Home";
@@ -23,8 +23,11 @@ function Router() {
 const Index = () => (
   <StoreProvider>
     <div className="min-h-[100dvh] bg-muted/30">
-      <div className="app-shell">
-        <Router />
+      <div className="app-shell flex w-full">
+        <SidebarNav />
+        <main className="flex-1 min-w-0">
+          <Router />
+        </main>
         <BottomNav />
       </div>
     </div>

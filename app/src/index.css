@@ -199,12 +199,11 @@
 
 @layer components {
   .app-shell {
-    @apply mx-auto flex w-full max-w-[440px] flex-col bg-background;
+    @apply mx-auto flex w-full max-w-screen-2xl bg-background;
     min-height: 100dvh;
-    box-shadow: 0 0 0 1px hsl(var(--border));
   }
 
-  .screen-pad { @apply px-4 pb-28 pt-4; }
+  .screen-pad { @apply px-4 md:px-8 lg:px-12 pb-28 md:pb-8 pt-4 md:pt-8; }
 
   .chip {
     @apply inline-flex select-none items-center justify-center rounded-full border border-border bg-background px-3 py-2 text-xs font-medium uppercase tracking-wider text-foreground transition-colors;

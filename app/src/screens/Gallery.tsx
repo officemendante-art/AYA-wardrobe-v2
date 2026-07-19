@@ -243,17 +243,17 @@ export function GalleryScreen() {
               </button>
             </div>
 
-            <div className="pb-24">
+            <div className="pb-24 md:pb-0 md:flex md:h-[100dvh] md:w-full md:items-center md:gap-8 md:px-12 md:pt-20">
               {/* Hero Image (Shared Element) */}
               <div 
-                className="relative w-full cursor-pointer overflow-hidden"
+                className="relative w-full cursor-pointer overflow-hidden md:w-1/2 md:flex-shrink-0"
                 onClick={() => setActiveImageId(null)}
               >
                 <motion.img
                   layoutId={`image-${activeImage.id}`}
                   src={`/${activeImage.image_path}`}
                   alt={activeImage.title || "Outfit"}
-                  className="w-full h-auto max-h-[75vh] object-contain drop-shadow-2xl"
+                  className="w-full h-auto max-h-[75vh] md:max-h-[85vh] object-contain drop-shadow-2xl"
                 />
               </div>
 
@@ -263,7 +263,7 @@ export function GalleryScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
                 transition={{ delay: 0.1, duration: 0.3 }}
-                className="mx-auto max-w-2xl px-6 pt-6"
+                className="mx-auto max-w-2xl px-6 pt-6 md:w-1/2 md:h-full md:overflow-y-auto md:pb-24 md:pt-12"
               >
                 <h2 className="font-serif text-2xl font-medium tracking-tight">{activeImage.title || "Untitled Outfit"}</h2>
                 

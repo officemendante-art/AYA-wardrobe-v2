@@ -15,7 +15,7 @@ export function ActivityScreen() {
   useEffect(() => { refreshActivity(); }, [refreshActivity]);
 
   return (
-    <div className="screen-pad">
+    <div className="screen-pad mx-auto max-w-2xl w-full">
       <ScreenHeader
         title="Activity Log"
         subtitle="Audit trail"
