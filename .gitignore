@@ -1,0 +1,18 @@
+node_modules/
+app/data/aya.db
+app/data/images/
+GOOGLE FLOW OUTFITS/
+AYA_x_PYS_Wardrobe_Images_Clean/
+Wardrobe_Brain_extracted/
+*.zip
+*.mp4
+app/dist/
+.env
+*.png
+*.pdf
+*.docx
+*.jpeg
+*.jpg
+ 
+knowledge/
+outfits/
