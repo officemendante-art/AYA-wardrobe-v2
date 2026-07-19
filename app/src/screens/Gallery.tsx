@@ -37,9 +37,9 @@ const GalleryGridItem = ({ data: img }: { data: GalleryImage }) => {
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center bg-secondary p-4 text-center text-muted-foreground">
-            <span className="mb-2 font-serif text-lg font-medium leading-tight text-foreground">{img.title || "Untitled Outfit"}</span>
-            <span className="text-[10px] uppercase tracking-wider">{img.source || "No Image"}</span>
+          <div className="flex h-full w-full flex-col items-center justify-center bg-secondary/80 p-4 text-center text-muted-foreground">
+            <span className="mb-2 text-3xl opacity-20">🖼</span>
+            <span className="text-[10px] font-medium uppercase tracking-widest opacity-50">Unavailable</span>
           </div>
         )}
       </div>
