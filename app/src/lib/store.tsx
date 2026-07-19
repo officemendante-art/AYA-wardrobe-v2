@@ -247,7 +247,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }), [
     stack, navigate, back,
     garments, refreshWardrobe,
-    analyzeItem, updateGarment, archiveGarment, deleteGarment,
+    analyzeItem, verifyItem, updateGarment, archiveGarment, deleteGarment,
     draft, setDraft,
     lastOutfit, generateOutfit,
     galleryImages, refreshGallery,
