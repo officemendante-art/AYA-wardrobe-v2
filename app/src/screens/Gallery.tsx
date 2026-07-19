@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useStore } from "@/lib/store";
 import type { GalleryImage } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,6 +56,9 @@ export function GalleryScreen() {
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [showFullDetails, setShowFullDetails] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { refreshGallery } = useStore();
 
   // Listen for the custom event to open an image
   useEffect(() => {
@@ -66,6 +69,31 @@ export function GalleryScreen() {
     window.addEventListener("open-image", handleOpen);
     return () => window.removeEventListener("open-image", handleOpen);
   }, []);
+
+  // Upload a new outfit photo
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const image = ev.target?.result as string;
+        await fetch("/api/gallery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image, title: file.name.replace(/\.[^.]+$/, "") }),
+        });
+        await refreshGallery();
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+    }
+    // Reset so the same file can be picked again
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   // Compute collection filtered logic
   const getCollectionImages = (collectionId: string) => {
@@ -230,12 +258,20 @@ export function GalleryScreen() {
       {/* ─────────────────────────────────────────────────────────────
           FLOATING ACTION BUTTON
           ───────────────────────────────────────────────────────────── */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUpload}
+      />
       <div className={`fixed bottom-24 right-6 z-40 transition-opacity duration-300 ${activeImageId ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
         <button 
-          onClick={() => { /* Open upload/import menu */ }}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 active:scale-95"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
         >
-          <Plus className="h-6 w-6" />
+          {uploading ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" /> : <Plus className="h-6 w-6" />}
         </button>
       </div>
 

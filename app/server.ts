@@ -56,6 +56,14 @@ async function startServer() {
       saveDb();
       log("success", "system", "Migration complete.");
     }
+    
+    // ─── DATA CLEANUP: Remove any GalleryImages with broken absolute paths ───
+    const brokenCount = (queryOne<{ cnt: number }>("SELECT COUNT(*) as cnt FROM GalleryImages WHERE image_path LIKE 'C:%' OR image_path LIKE '/Users/%'"))?.cnt ?? 0;
+    if (brokenCount > 0) {
+      run("DELETE FROM GalleryImages WHERE image_path LIKE 'C:%' OR image_path LIKE '/Users/%'");
+      saveDb();
+      log("success", "system", `Cleaned ${brokenCount} gallery records with invalid absolute paths.`);
+    }
   } catch(e) {
     console.error("Migration error:", e);
   }
@@ -304,10 +312,33 @@ async function startServer() {
   // GET /api/gallery
   app.get("/api/gallery", (_req, res) => {
     try {
-      const images = queryAll("SELECT * FROM GalleryImages ORDER BY created_at DESC");
+      const images = queryAll("SELECT * FROM GalleryImages WHERE image_path NOT LIKE 'C:%' AND image_path NOT LIKE '/Users/%' ORDER BY created_at DESC");
       res.json(images);
     } catch (e) { handleError(res, e, "get-gallery"); }
   });
+
+  // POST /api/gallery — Upload a new outfit image
+  app.post("/api/gallery", (req, res) => {
+    try {
+      const { image, title } = req.body;
+      if (!image) return res.status(400).json({ error: "No image provided" });
+      const id = `UPLOAD-${Date.now()}`;
+      const ext = image.match(/^data:image\/(\w+)/)?.[1] ?? "jpg";
+      const imgDir = path.join(__dirname, "data/images/uploads");
+      fs.mkdirSync(imgDir, { recursive: true });
+      const imgPath = path.join(imgDir, `${id}.${ext}`);
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      fs.writeFileSync(imgPath, Buffer.from(base64Data, "base64"));
+      const relativePath = `data/images/uploads/${id}.${ext}`;
+      run(
+        "INSERT INTO GalleryImages (id, title, image_path, source, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
+        [id, title || "Uploaded Outfit", relativePath, "upload"]
+      );
+      saveDb();
+      res.json({ success: true, id, image_path: relativePath });
+    } catch (e) { handleError(res, e, "post-gallery"); }
+  });
+
 
   // GET /api/collections
   app.get("/api/collections", (_req, res) => {
