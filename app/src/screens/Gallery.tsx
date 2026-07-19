@@ -57,14 +57,52 @@ export function GalleryScreen() {
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [showFullDetails, setShowFullDetails] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<GalleryImage>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { refreshGallery } = useStore();
+
+  const handleBatchAnalyze = async () => {
+    try {
+      await fetch("/api/gallery/analyze-batch", { method: "POST" });
+      alert("Batch analysis started. This will take a few minutes in the background.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to start batch analysis");
+    }
+  };
+
+  const handleReAnalyze = async (id: string) => {
+    try {
+      await fetch(`/api/gallery/${id}/analyze`, { method: "POST" });
+      await refreshGallery();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to re-analyze");
+    }
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    try {
+      await fetch(`/api/gallery/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      await refreshGallery();
+      setIsEditing(false);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save edits");
+    }
+  };
 
   // Listen for the custom event to open an image
   useEffect(() => {
     const handleOpen = (e: any) => {
       setActiveImageId(e.detail);
       setShowFullDetails(false); // Reset details state when opening new image
+      setIsEditing(false);
     };
     window.addEventListener("open-image", handleOpen);
     return () => window.removeEventListener("open-image", handleOpen);
@@ -150,7 +188,15 @@ export function GalleryScreen() {
         
         {/* Header & Search */}
         <div className="mb-6 space-y-4 pt-4">
-          <h1 className="font-serif text-3xl font-medium tracking-tight">Gallery</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="font-serif text-3xl font-medium tracking-tight">Gallery</h1>
+            <button
+              onClick={handleBatchAnalyze}
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Fill Missing Details
+            </button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -319,70 +365,123 @@ export function GalleryScreen() {
                 transition={{ delay: 0.1, duration: 0.3 }}
                 className="mx-auto max-w-2xl px-6 pt-6 md:w-1/2 md:h-full md:overflow-y-auto md:pb-24 md:pt-12"
               >
-                <h2 className="font-serif text-2xl font-medium tracking-tight">{activeImage.title || "Untitled Outfit"}</h2>
-                
-                <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                  {activeImage.occasion && <span>{activeImage.occasion}</span>}
-                  {activeImage.occasion && activeImage.season && <span>•</span>}
-                  {activeImage.season && <span>{activeImage.season}</span>}
-                </div>
-                
-                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-sm font-medium text-foreground">
-                  {activeImage.primary_colors && <span>{activeImage.primary_colors.replace(/,/g, ' • ')}</span>}
-                  {activeImage.primary_colors && activeImage.fabric && <span>•</span>}
-                  {activeImage.fabric && <span>{activeImage.fabric.replace(/,/g, ' • ')}</span>}
-                </div>
-
-                <div className="my-6 h-px w-full bg-border" />
-
-                <button 
-                  onClick={() => setShowFullDetails(!showFullDetails)}
-                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Show Details
-                </button>
-
-                {/* Extended Details Drawer */}
-                <AnimatePresence>
-                  {showFullDetails && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="space-y-8 pt-8 pb-12">
-                        {activeImage.dna && (
-                          <div>
-                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">DNA</h3>
-                            <p className="font-serif text-base leading-relaxed text-foreground">{activeImage.dna.replace(/,/g, '\n')}</p>
-                          </div>
-                        )}
-                        
-                        {activeImage.secondary_colors && (
-                          <div>
-                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pantone</h3>
-                            <p className="font-serif text-base text-foreground">{activeImage.secondary_colors}</p>
-                          </div>
-                        )}
-
-                        {activeImage.fabric && (
-                          <div>
-                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fabric</h3>
-                            <p className="font-serif text-base text-foreground">{activeImage.fabric}</p>
-                          </div>
-                        )}
-
-                        {activeImage.notes && (
-                          <div>
-                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Notes</h3>
-                            <p className="font-serif text-base leading-relaxed text-foreground whitespace-pre-wrap">{activeImage.notes}</p>
-                          </div>
-                        )}
+                {!isEditing ? (
+                  <>
+                    <div className="flex items-start justify-between">
+                      <h2 className="font-serif text-2xl font-medium tracking-tight">{activeImage.title || "Untitled Outfit"}</h2>
+                      <div className="flex gap-4">
+                        <button onClick={() => { setEditForm(activeImage); setIsEditing(true); }} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">Edit</button>
+                        <button onClick={() => handleReAnalyze(activeImage.id)} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">Re-Analyze</button>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    </div>
+                    
+                    <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                      {activeImage.occasion && <span>{activeImage.occasion}</span>}
+                      {activeImage.occasion && activeImage.season && <span>•</span>}
+                      {activeImage.season && <span>{activeImage.season}</span>}
+                      {activeImage.season && activeImage.style && <span>•</span>}
+                      {activeImage.style && <span>{activeImage.style}</span>}
+                    </div>
+                    
+                    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-sm font-medium text-foreground">
+                      {activeImage.primary_colors && <span>{activeImage.primary_colors.replace(/,/g, ' • ')}</span>}
+                      {activeImage.primary_colors && activeImage.fabric && <span>•</span>}
+                      {activeImage.fabric && <span>{activeImage.fabric.replace(/,/g, ' • ')}</span>}
+                    </div>
+
+                    <div className="my-6 h-px w-full bg-border" />
+
+                    <button 
+                      onClick={() => setShowFullDetails(!showFullDetails)}
+                      className="text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      Show Details
+                    </button>
+
+                    {/* Extended Details Drawer */}
+                    <AnimatePresence>
+                      {showFullDetails && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-8 pt-8 pb-12">
+                            {activeImage.dna && (
+                              <div>
+                                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">DNA</h3>
+                                <p className="font-serif text-base leading-relaxed text-foreground">{activeImage.dna.replace(/,/g, '\n')}</p>
+                              </div>
+                            )}
+                            
+                            {activeImage.secondary_colors && (
+                              <div>
+                                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pantone</h3>
+                                <p className="font-serif text-base text-foreground">{activeImage.secondary_colors}</p>
+                              </div>
+                            )}
+
+                            {activeImage.fabric && (
+                              <div>
+                                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fabric</h3>
+                                <p className="font-serif text-base text-foreground">{activeImage.fabric}</p>
+                              </div>
+                            )}
+
+                            {activeImage.notes && (
+                              <div>
+                                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Notes</h3>
+                                <p className="font-serif text-base leading-relaxed text-foreground whitespace-pre-wrap">{activeImage.notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="font-serif text-2xl font-medium tracking-tight">Edit Details</h2>
+                      <div className="flex gap-4">
+                        <button onClick={() => setIsEditing(false)} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">Cancel</button>
+                        <button onClick={() => handleSaveEdit(activeImage.id)} className="text-xs font-semibold uppercase tracking-wider text-primary hover:opacity-80">Save</button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Title</label>
+                        <input type="text" value={editForm.title || ""} onChange={(e) => setEditForm({...editForm, title: e.target.value})} className="w-full rounded bg-secondary/50 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Occasion</label>
+                        <input type="text" value={editForm.occasion || ""} onChange={(e) => setEditForm({...editForm, occasion: e.target.value})} className="w-full rounded bg-secondary/50 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Season</label>
+                        <input type="text" value={editForm.season || ""} onChange={(e) => setEditForm({...editForm, season: e.target.value})} className="w-full rounded bg-secondary/50 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Style</label>
+                        <input type="text" value={editForm.style || ""} onChange={(e) => setEditForm({...editForm, style: e.target.value})} className="w-full rounded bg-secondary/50 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Colors (Primary)</label>
+                        <input type="text" value={editForm.primary_colors || ""} onChange={(e) => setEditForm({...editForm, primary_colors: e.target.value})} className="w-full rounded bg-secondary/50 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fabric</label>
+                        <input type="text" value={editForm.fabric || ""} onChange={(e) => setEditForm({...editForm, fabric: e.target.value})} className="w-full rounded bg-secondary/50 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-muted-foreground">Notes</label>
+                        <textarea value={editForm.notes || ""} onChange={(e) => setEditForm({...editForm, notes: e.target.value})} className="h-24 w-full rounded bg-secondary/50 p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </div>
           </motion.div>

@@ -392,3 +392,17 @@ CREATE TABLE IF NOT EXISTS AnalyticsCache (
   value      TEXT NOT NULL,          -- JSON value
   computed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ============================================================
+-- REVIEW QUEUE: AI extraction uncertainty log
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS ReviewQueue (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  garment_id TEXT NOT NULL REFERENCES Garments(id) ON DELETE CASCADE,
+  field      TEXT NOT NULL,
+  ai_value   TEXT,
+  confidence REAL NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+

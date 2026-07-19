@@ -25,6 +25,7 @@ import { calculateROI, type ROIInput } from "./server/engines/purchase.js";
 
 // ─── Ingestion ────────────────────────────────────────────────────────────────
 import { analyzeGarment, extractGarmentData } from "./server/ingestion/analyze-garment.js";
+import { analyzeGalleryOutfit, runGalleryBatchAnalysis } from "./server/ingestion/analyze-gallery.js";
 import { runKnowledgeCompiler } from "./server/ingestion/compile-knowledge.js";
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ async function startServer() {
 
   // ─── MIGRATIONS ─────────────────────────────────────────────────────────────
   try {
-    run("DROP TABLE IF EXISTS ReviewQueue");
+    // ReviewQueue is now in schema.sql, no longer dropped
     run("DROP TABLE IF EXISTS Shopping");
     run("DROP TABLE IF EXISTS UnknownTerritory");
     
@@ -350,7 +351,7 @@ async function startServer() {
   });
 
   // POST /api/gallery — Upload a new outfit image
-  app.post("/api/gallery", (req, res) => {
+  app.post("/api/gallery", async (req, res) => {
     try {
       const { image, title } = req.body;
       if (!image) return res.status(400).json({ error: "No image provided" });
@@ -367,8 +368,67 @@ async function startServer() {
         [id, title || "Uploaded Outfit", relativePath, "upload"]
       );
       saveDb();
-      res.json({ success: true, id, image_path: relativePath });
+      
+      // Auto-analyze in background via Jobs table
+      const jobId = queryOne<{ id: number }>("SELECT id FROM Jobs ORDER BY id DESC LIMIT 1")?.id ?? 0;
+      const newJobId = jobId + 1;
+      run("INSERT INTO Jobs (id, type, payload) VALUES (?, ?, ?)", [newJobId, "analyze_gallery", JSON.stringify({ id })]);
+      saveDb();
+      
+      runGalleryBatchAnalysis(newJobId, getApiKey(req)).catch(console.error);
+
+      res.json({ success: true, id, image_path: relativePath, job_id: newJobId });
     } catch (e) { handleError(res, e, "post-gallery"); }
+  });
+
+  // POST /api/gallery/analyze-batch — Backfill all missing metadata
+  app.post("/api/gallery/analyze-batch", (req, res) => {
+    try {
+      const jobId = queryOne<{ id: number }>("SELECT id FROM Jobs ORDER BY id DESC LIMIT 1")?.id ?? 0;
+      const newJobId = jobId + 1;
+      run("INSERT INTO Jobs (id, type) VALUES (?, ?)", [newJobId, "analyze_gallery_batch"]);
+      saveDb();
+
+      // Fire and forget
+      runGalleryBatchAnalysis(newJobId, getApiKey(req)).catch(console.error);
+      
+      res.json({ success: true, job_id: newJobId });
+    } catch (e) { handleError(res, e, "gallery-analyze-batch"); }
+  });
+
+  // POST /api/gallery/:id/analyze — Re-analyze a single outfit
+  app.post("/api/gallery/:id/analyze", async (req, res) => {
+    try {
+      const data = await analyzeGalleryOutfit(req.params.id, getApiKey(req));
+      res.json({ success: true, data });
+    } catch (e) { handleError(res, e, "gallery-analyze-single"); }
+  });
+  
+  // PATCH /api/gallery/:id — Manual edits
+  app.patch("/api/gallery/:id", (req, res) => {
+    try {
+      const id = req.params.id;
+      const patch = req.body;
+      const allowed = ["title", "occasion", "season", "style", "primary_colors", "secondary_colors", "fit", "fabric", "notes"];
+      
+      const sets: string[] = [];
+      const vals: any[] = [];
+      
+      for (const k of allowed) {
+        if (patch[k] !== undefined) {
+          sets.push(`${k} = ?`);
+          vals.push(patch[k]);
+        }
+      }
+      
+      if (sets.length > 0) {
+        vals.push(id);
+        run(`UPDATE GalleryImages SET ${sets.join(", ")} WHERE id = ?`, vals);
+        saveDb();
+      }
+      
+      res.json({ success: true });
+    } catch (e) { handleError(res, e, "patch-gallery"); }
   });
 
 
