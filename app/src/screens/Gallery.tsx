@@ -1,19 +1,23 @@
 import { useState, useEffect, useMemo } from "react";
-import { ScreenHeader, TextInput } from "@/components/ui-bits";
 import { useStore } from "@/lib/store";
 import type { GalleryImage } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Masonry } from "masonic";
-import { Folder, Heart, X, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Search, Plus } from "lucide-react";
 
-// The masonry grid item component
+// ─────────────────────────────────────────────────────────────────────────────
+// MASONRY GRID ITEM
+// ─────────────────────────────────────────────────────────────────────────────
 const GalleryGridItem = ({ data: img }: { data: GalleryImage }) => {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
   return (
-    <div
-      className="group relative cursor-pointer overflow-hidden rounded-xl bg-secondary transition-transform duration-300 hover:scale-[1.02] active:scale-95"
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className="group relative cursor-pointer overflow-hidden bg-secondary"
       onClick={() => window.dispatchEvent(new CustomEvent("open-image", { detail: img.id }))}
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden">
@@ -37,22 +41,18 @@ const GalleryGridItem = ({ data: img }: { data: GalleryImage }) => {
             <span className="mb-2 text-2xl">Y-?</span>
           </div>
         )}
-
-        {/* Favorite Badge */}
-        {img.is_favorite === 1 && (
-          <div className="absolute right-2 top-2 drop-shadow-md text-white">
-            <Heart className="h-5 w-5 fill-white text-white" />
-          </div>
-        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
 export function GalleryScreen() {
   const { galleryImages, collections } = useStore();
   const [q, setQ] = useState("");
-  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [showFullDetails, setShowFullDetails] = useState(false);
 
@@ -66,29 +66,50 @@ export function GalleryScreen() {
     return () => window.removeEventListener("open-image", handleOpen);
   }, []);
 
-  // Filter images based on folder and search query
-  const filtered = useMemo(() => {
+  // Compute collection filtered logic
+  const getCollectionImages = (collectionId: string) => {
     return galleryImages.filter((img) => {
-      const haystack = `${img.title} ${img.occasion} ${img.season} ${img.style} ${img.primary_colors} ${img.fabric} ${img.notes}`.toLowerCase();
-      if (q && !haystack.includes(q.toLowerCase())) return false;
-      
-      if (activeFolder === "favorites") return img.is_favorite === 1;
-      if (activeFolder && activeFolder !== "all") {
-        const coll = collections.find((c) => c.id === activeFolder);
+      const haystack = `${img.title} ${img.occasion} ${img.season} ${img.style} ${img.primary_colors} ${img.fabric} ${img.notes} ${img.dna}`.toLowerCase();
+      if (collectionId === "favorites") return img.is_favorite === 1;
+      if (collectionId !== "all") {
+        const coll = collections.find((c) => c.id === collectionId);
         if (coll && !haystack.includes(coll.name.toLowerCase())) return false;
       }
       return true;
     });
-  }, [galleryImages, activeFolder, q, collections]);
+  };
+
+  // Filter images based on search query or active collection
+  const filtered = useMemo(() => {
+    if (q) {
+      return galleryImages.filter((img) => {
+        const haystack = `${img.title} ${img.occasion} ${img.season} ${img.style} ${img.primary_colors} ${img.fabric} ${img.notes} ${img.dna}`.toLowerCase();
+        return haystack.includes(q.toLowerCase());
+      });
+    }
+    if (activeCollection) return getCollectionImages(activeCollection);
+    return galleryImages; // for "Recent Photos" if needed
+  }, [galleryImages, activeCollection, q, collections]);
 
   const activeImage = useMemo(() => galleryImages.find((img) => img.id === activeImageId), [galleryImages, activeImageId]);
   
-  // Folder list structure
-  const folders = [
-    { id: "all", name: "All Photos", icon: <Folder className="h-4 w-4" /> },
-    { id: "favorites", name: "Favorites", icon: <Heart className="h-4 w-4" /> },
-    ...collections.map(c => ({ id: c.id, name: c.name, icon: <Folder className="h-4 w-4" /> }))
-  ];
+  // Build rich collection previews
+  const collectionPreviews = useMemo(() => {
+    const defaultColls = [
+      { id: "all", name: "All Photos" },
+      { id: "favorites", name: "Favorites" },
+    ];
+    const allColls = [...defaultColls, ...collections.map(c => ({ id: c.id, name: c.name }))];
+    
+    return allColls.map(coll => {
+      const images = getCollectionImages(coll.id);
+      return {
+        ...coll,
+        count: images.length,
+        cover: images.length > 0 ? images[0].image_path : null
+      };
+    }).filter(c => c.count > 0 || c.id === "all"); // Hide empty collections except "All"
+  }, [galleryImages, collections]);
 
   return (
     <div className="relative min-h-screen pb-20">
@@ -105,46 +126,61 @@ export function GalleryScreen() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search archive..."
+              placeholder="Search outfits..."
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => {
+                setQ(e.target.value);
+                if (e.target.value) setActiveCollection(null);
+              }}
               className="w-full rounded-full border-0 bg-secondary/50 py-2.5 pl-10 pr-4 text-sm focus:bg-secondary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
 
-        {/* FOLDER-FIRST VIEW */}
-        {!activeFolder && !q && (
-          <div className="mb-8 space-y-2">
-            {folders.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => setActiveFolder(folder.id)}
-                className="flex w-full items-center gap-4 rounded-2xl p-4 transition-colors hover:bg-secondary/50 active:bg-secondary"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary">
-                  {folder.icon}
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-medium">{folder.name}</div>
-                </div>
-              </button>
-            ))}
+        {/* COLLECTION PREVIEWS (Grid) */}
+        {!activeCollection && !q && (
+          <div className="mb-8">
+            <h2 className="mb-4 font-serif text-lg text-muted-foreground">Collections</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {collectionPreviews.map((coll) => (
+                <button
+                  key={coll.id}
+                  onClick={() => setActiveCollection(coll.id)}
+                  className="group relative flex aspect-square flex-col justify-end overflow-hidden bg-secondary text-left"
+                >
+                  {coll.cover ? (
+                    <img 
+                      src={`/${coll.cover}`} 
+                      alt={coll.name} 
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-muted" />
+                  )}
+                  {/* Dim Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="relative z-10 p-3">
+                    <div className="font-serif text-sm font-medium text-white">{coll.name}</div>
+                    <div className="text-[10px] text-white/70">{coll.count} outfits</div>
+                  </div>
+                </button>
+              ))}
+            </div>
             
-            <div className="pt-8 pb-4">
+            <div className="pt-10 pb-4">
               <h2 className="font-serif text-lg text-muted-foreground">Recent Photos</h2>
             </div>
           </div>
         )}
 
-        {/* ACTIVE FOLDER HEADER */}
-        {(activeFolder || q) && (
+        {/* ACTIVE COLLECTION HEADER */}
+        {(activeCollection || q) && (
           <div className="mb-6 flex items-center justify-between">
             <h2 className="font-serif text-xl font-medium">
-              {q ? "Search Results" : folders.find(f => f.id === activeFolder)?.name}
+              {q ? "Search Results" : collectionPreviews.find(f => f.id === activeCollection)?.name}
             </h2>
             <button 
-              onClick={() => { setActiveFolder(null); setQ(""); }}
+              onClick={() => { setActiveCollection(null); setQ(""); }}
               className="text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-primary"
             >
               Clear
@@ -154,8 +190,11 @@ export function GalleryScreen() {
 
         {/* MASONRY GRID (Either Recent Photos or Filtered Photos) */}
         {filtered.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            No images found in this collection.
+          <div className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="font-serif text-lg font-medium">Your Gallery is empty.</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Import Google Flow images<br />or upload your first outfit.
+            </p>
           </div>
         ) : (
           <div className="pb-8">
@@ -171,20 +210,32 @@ export function GalleryScreen() {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
+          FLOATING ACTION BUTTON
+          ───────────────────────────────────────────────────────────── */}
+      <div className={`fixed bottom-24 right-6 z-40 transition-opacity duration-300 ${activeImageId ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+        <button 
+          onClick={() => { /* Open upload/import menu */ }}
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 active:scale-95"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────
           IN-PLACE EXPANDING IMAGE VIEWER (SHARED ELEMENT)
           ───────────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {activeImageId && activeImage && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50 overflow-y-auto bg-background"
+            initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            animate={{ opacity: 1, backdropFilter: "blur(20px)" }}
+            exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            transition={{ duration: 0.4 }}
+            className="fixed inset-0 z-50 overflow-y-auto bg-background/80"
           >
             {/* Close Hitbox (Top area) */}
             <div 
-              className="absolute left-0 right-0 top-0 z-50 flex h-20 items-center justify-start p-4 bg-gradient-to-b from-black/20 to-transparent"
+              className="fixed left-0 right-0 top-0 z-50 flex h-20 items-center justify-start p-4 bg-gradient-to-b from-black/30 to-transparent"
               onClick={() => setActiveImageId(null)}
             >
               <button className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-colors hover:bg-black/60">
@@ -192,95 +243,94 @@ export function GalleryScreen() {
               </button>
             </div>
 
-            {/* Hero Image (Shared Element) */}
-            <div 
-              className="relative w-full cursor-pointer bg-secondary"
-              onClick={() => setActiveImageId(null)}
-            >
-              <motion.img
-                layoutId={`image-${activeImage.id}`}
-                src={`/${activeImage.image_path}`}
-                alt={activeImage.title || "Outfit"}
-                className="w-full h-[65vh] object-cover"
-              />
-            </div>
-
-            {/* Short Metadata Reveal */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
-              className="mx-auto max-w-2xl p-6"
-            >
-              <h2 className="font-serif text-2xl font-medium">{activeImage.title || "Untitled Outfit"}</h2>
-              
-              <div className="mt-4 flex flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                {activeImage.occasion && <span>{activeImage.occasion}</span>}
-                {activeImage.occasion && activeImage.season && <span>•</span>}
-                {activeImage.season && <span>{activeImage.season}</span>}
-              </div>
-              
-              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-sm font-medium text-primary">
-                {activeImage.primary_colors && <span>{activeImage.primary_colors.replace(/,/g, ' • ')}</span>}
-                {activeImage.primary_colors && activeImage.fabric && <span>•</span>}
-                {activeImage.fabric && <span>{activeImage.fabric.replace(/,/g, ' • ')}</span>}
+            <div className="pb-24">
+              {/* Hero Image (Shared Element) */}
+              <div 
+                className="relative w-full cursor-pointer overflow-hidden"
+                onClick={() => setActiveImageId(null)}
+              >
+                <motion.img
+                  layoutId={`image-${activeImage.id}`}
+                  src={`/${activeImage.image_path}`}
+                  alt={activeImage.title || "Outfit"}
+                  className="w-full h-auto max-h-[75vh] object-contain drop-shadow-2xl"
+                />
               </div>
 
-              <div className="mt-8 border-t border-border pt-2">
+              {/* Minimal Metadata Reveal */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ delay: 0.1, duration: 0.3 }}
+                className="mx-auto max-w-2xl px-6 pt-6"
+              >
+                <h2 className="font-serif text-2xl font-medium tracking-tight">{activeImage.title || "Untitled Outfit"}</h2>
+                
+                <div className="mt-3 flex flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                  {activeImage.occasion && <span>{activeImage.occasion}</span>}
+                  {activeImage.occasion && activeImage.season && <span>•</span>}
+                  {activeImage.season && <span>{activeImage.season}</span>}
+                </div>
+                
+                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-sm font-medium text-foreground">
+                  {activeImage.primary_colors && <span>{activeImage.primary_colors.replace(/,/g, ' • ')}</span>}
+                  {activeImage.primary_colors && activeImage.fabric && <span>•</span>}
+                  {activeImage.fabric && <span>{activeImage.fabric.replace(/,/g, ' • ')}</span>}
+                </div>
+
+                <div className="my-6 h-px w-full bg-border" />
+
                 <button 
                   onClick={() => setShowFullDetails(!showFullDetails)}
-                  className="flex w-full items-center justify-center gap-2 py-4 text-sm font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-primary"
+                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  {showFullDetails ? (
-                    <>Hide Details <ChevronUp className="h-4 w-4" /></>
-                  ) : (
-                    <>Show Details <ChevronDown className="h-4 w-4" /></>
-                  )}
+                  Show Details
                 </button>
-              </div>
 
-              {/* Extended Details */}
-              <AnimatePresence>
-                {showFullDetails && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-6 pb-12 pt-4">
-                      {activeImage.dna && (
-                        <div>
-                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">DNA</h3>
-                          <p className="text-sm leading-relaxed">{activeImage.dna}</p>
-                        </div>
-                      )}
-                      
-                      {activeImage.notes && (
-                        <div>
-                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Notes</h3>
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{activeImage.notes}</p>
-                        </div>
-                      )}
-                      
-                      {activeImage.secondary_colors && (
-                        <div>
-                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Secondary Colors</h3>
-                          <p className="text-sm">{activeImage.secondary_colors}</p>
-                        </div>
-                      )}
+                {/* Extended Details Drawer */}
+                <AnimatePresence>
+                  {showFullDetails && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-8 pt-8 pb-12">
+                        {activeImage.dna && (
+                          <div>
+                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">DNA</h3>
+                            <p className="font-serif text-base leading-relaxed text-foreground">{activeImage.dna.replace(/,/g, '\n')}</p>
+                          </div>
+                        )}
+                        
+                        {activeImage.secondary_colors && (
+                          <div>
+                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pantone</h3>
+                            <p className="font-serif text-base text-foreground">{activeImage.secondary_colors}</p>
+                          </div>
+                        )}
 
-                      {activeImage.fit && (
-                        <div>
-                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fit</h3>
-                          <p className="text-sm">{activeImage.fit}</p>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+                        {activeImage.fabric && (
+                          <div>
+                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fabric</h3>
+                            <p className="font-serif text-base text-foreground">{activeImage.fabric}</p>
+                          </div>
+                        )}
+
+                        {activeImage.notes && (
+                          <div>
+                            <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Notes</h3>
+                            <p className="font-serif text-base leading-relaxed text-foreground whitespace-pre-wrap">{activeImage.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
