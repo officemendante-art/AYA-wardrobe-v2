@@ -234,7 +234,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     screen: stack[stack.length - 1],
     navigate, back,
     garments, refreshWardrobe,
-    analyzeItem, updateGarment, archiveGarment, deleteGarment,
+    analyzeItem, verifyItem, updateGarment, archiveGarment, deleteGarment,
     draft, setDraft,
     lastOutfit, generateOutfit,
     galleryImages, refreshGallery,
