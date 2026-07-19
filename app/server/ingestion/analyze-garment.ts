@@ -13,18 +13,13 @@ import { buildIdentityContext } from "../engines/identity.js";
 
 const CONFIDENCE_REVIEW_THRESHOLD = 0.75;
 
-// ─── Full garment analysis ─────────────────────────────────────────────────────
+// ─── Gemini Data Extraction ────────────────────────────────────────────────────
 
-export async function analyzeGarment(
+export async function extractGarmentData(
   imageDataUrl: string,
   userContext: string,
   apiKey: string
-): Promise<{
-  garmentId: string;
-  metadata: Record<string, unknown>;
-  reviewQueueCount: number;
-  confidence: number;
-}> {
+): Promise<Record<string, unknown>> {
   const matches = imageDataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
   if (!matches) throw new Error("Invalid image data URI format.");
   const [, mimeType, base64Data] = matches;
@@ -124,12 +119,26 @@ User context: "${userContext || "No additional context provided."}"`
     }
   });
 
-  let data: Record<string, unknown>;
   try {
-    data = JSON.parse(response.text?.trim() ?? "{}");
+    return JSON.parse(response.text?.trim() ?? "{}");
   } catch {
     throw new Error("Gemini returned malformed JSON. Please retry the analysis.");
   }
+}
+
+// ─── Full garment analysis ─────────────────────────────────────────────────────
+
+export async function analyzeGarment(
+  imageDataUrl: string,
+  userContext: string,
+  apiKey: string
+): Promise<{
+  garmentId: string;
+  metadata: Record<string, unknown>;
+  reviewQueueCount: number;
+  confidence: number;
+}> {
+  const data = await extractGarmentData(imageDataUrl, userContext, apiKey);
 
   // Generate garment ID
   const category = String(data.category ?? "accessories");

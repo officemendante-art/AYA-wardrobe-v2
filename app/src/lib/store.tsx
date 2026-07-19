@@ -33,6 +33,7 @@ interface StoreCtx {
   garments: Garment[];
   refreshWardrobe: () => Promise<void>;
   analyzeItem: (imageDataUrl: string, userContext: string) => Promise<AnalysisResult>;
+  verifyItem: (imageDataUrl: string, userContext: string) => Promise<any>;
   updateGarment: (id: string, patch: Partial<Garment>) => Promise<void>;
   archiveGarment: (id: string) => Promise<void>;
   deleteGarment: (id: string) => Promise<void>;
@@ -140,6 +141,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return result;
     });
   }, [withLoading, navigate]);
+
+  const verifyItem = useCallback(async (imageDataUrl: string, userContext: string): Promise<any> => {
+    return withLoading("analyze", async () => {
+      const result = await apiFetch<any>("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageDataUrl, context: userContext }),
+      });
+      return result;
+    });
+  }, [withLoading]);
 
   const updateGarment = useCallback(async (id: string, patch: Partial<Garment>) => {
     await apiFetch(`/api/wardrobe/${id}`, {

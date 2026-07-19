@@ -21,9 +21,10 @@ import { initDb, queryAll, queryOne, run, saveDb, log, backupDb, getSchemaVersio
 // ─── Engines ──────────────────────────────────────────────────────────────────
 import { generateOutfit } from "./server/engines/decision.js";
 import { getGarmentDNA, getOutfitDNA } from "./server/engines/dna.js";
+import { calculateROI, type ROIInput } from "./server/engines/purchase.js";
 
 // ─── Ingestion ────────────────────────────────────────────────────────────────
-import { analyzeGarment } from "./server/ingestion/analyze-garment.js";
+import { analyzeGarment, extractGarmentData } from "./server/ingestion/analyze-garment.js";
 import { runKnowledgeCompiler } from "./server/ingestion/compile-knowledge.js";
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
@@ -186,6 +187,37 @@ async function startServer() {
 
       res.json(result);
     } catch (e) { handleError(res, e, "analyze"); }
+  });
+
+  // POST /api/verify — Analyze without saving and generate ROI verdict
+  app.post("/api/verify", async (req, res) => {
+    try {
+      const { image, context } = req.body;
+      if (!image) return res.status(400).json({ error: "image is required" });
+
+      // Validate image size
+      const sizeKb = Math.round(image.length * 0.75 / 1024);
+      if (sizeKb > 20_000) return res.status(413).json({ error: "Image too large (max 20MB)" });
+
+      const apiKey = getApiKey(req);
+      const data = await extractGarmentData(image, context ?? "", apiKey);
+
+      // Map to ROIInput
+      const input: ROIInput = {
+        item_name: String(data.item_name ?? "Unknown Item"),
+        category: String(data.category ?? "unknown"),
+        seasons: Array.isArray(data.season) ? data.season.map(String) : [],
+        occasions: Array.isArray(data.occasion_tags) ? data.occasion_tags.map(String) : [],
+        // price and maintenance remain undefined since they aren't visually extracted
+      };
+
+      const verdictData = calculateROI(input);
+
+      res.json({
+        ...verdictData,
+        extracted_attributes: data
+      });
+    } catch (e) { handleError(res, e, "verify"); }
   });
 
   // GET /api/wardrobe — All garments

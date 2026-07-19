@@ -44,10 +44,10 @@ export function getAllShopping(): ShoppingCandidate[] {
 export interface ROIInput {
   item_name: string;
   category: string;
-  price: number;
+  price?: number;
   seasons: string[];       // e.g. ["summer", "monsoon"]
   occasions: string[];     // e.g. ["casual", "smart_casual"]
-  maintenance: "low" | "medium" | "high";
+  maintenance?: "low" | "medium" | "high";
   brand_tier?: string;     // luxury | premium | mid | affordable
   photography_value?: number; // 0-100
 }
@@ -55,7 +55,7 @@ export interface ROIInput {
 export function calculateROI(input: ROIInput): {
   unlock_count: number;
   estimated_wears_per_year: number;
-  cost_per_wear: number;
+  cost_per_wear?: number;
   roi_score: number;
   verdict: "approve" | "consider" | "reject";
   reasoning: string[];
@@ -85,9 +85,9 @@ export function calculateROI(input: ROIInput): {
   );
 
   const cost_per_wear =
-    estimated_wears_per_year > 0
+    (price !== undefined && estimated_wears_per_year > 0)
       ? parseFloat((price / estimated_wears_per_year).toFixed(2))
-      : price;
+      : undefined;
 
   // Check for duplication
   const similar = queryAll<{ item_name: string }>(
@@ -108,7 +108,7 @@ export function calculateROI(input: ROIInput): {
       luxuryBonus -
       maintenancePenalty -
       (similar.length > 3 ? 15 : 0) +    // duplication penalty
-      (cost_per_wear < 50 ? 10 : 0)       // cost-efficiency bonus
+      (cost_per_wear !== undefined && cost_per_wear < 50 ? 10 : 0)       // cost-efficiency bonus
     )
   );
 
@@ -117,7 +117,7 @@ export function calculateROI(input: ROIInput): {
   if (seasons.length >= 3) reasoning.push("Multi-season versatility");
   if (occasions.length >= 3) reasoning.push("Cross-occasion flexibility");
   if (similar.length > 3) reasoning.push(`⚠ You already own ${similar.length} similar ${input.category}`);
-  if (cost_per_wear < 20) reasoning.push(`Excellent cost-per-wear: ₹${cost_per_wear}`);
+  if (cost_per_wear !== undefined && cost_per_wear < 20) reasoning.push(`Excellent cost-per-wear: ₹${cost_per_wear}`);
   if (maintenance === "high") reasoning.push("⚠ High maintenance cost");
 
   const verdict: "approve" | "consider" | "reject" =

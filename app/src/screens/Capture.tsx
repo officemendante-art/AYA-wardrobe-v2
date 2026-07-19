@@ -7,10 +7,12 @@ import { primaryColor, attributeValue, DNA_DIMENSIONS } from "@/lib/types";
 // ─── Capture Screen ────────────────────────────────────────────────────────────
 
 export function CaptureScreen() {
-  const { analyzeItem, back, loading } = useStore();
+  const { analyzeItem, verifyItem, back, loading } = useStore();
+  const [mode, setMode] = useState<"add" | "verify">("add");
   const [image, setImage] = useState("");
   const [context, setContext] = useState("");
   const [error, setError] = useState("");
+  const [verdictData, setVerdictData] = useState<any>(null);
 
   const isAnalyzing = loading["analyze"];
 
@@ -29,16 +31,109 @@ export function CaptureScreen() {
   const analyze = async () => {
     if (isAnalyzing || !image) return;
     setError("");
+    setVerdictData(null);
     try {
-      await analyzeItem(image, context);
+      if (mode === "add") {
+        await analyzeItem(image, context);
+      } else {
+        const res = await verifyItem(image, context);
+        setVerdictData(res);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed.");
     }
   };
 
+  if (verdictData) {
+    const v = verdictData;
+    const isApprove = v.verdict === "approve";
+    const isReject = v.verdict === "reject";
+    const attrs = v.extracted_attributes;
+    
+    return (
+      <div className="screen-pad space-y-6 mx-auto max-w-2xl w-full">
+        <ScreenHeader title="Verdict" onBack={() => { setVerdictData(null); setImage(""); }} />
+        
+        <div className={`p-6 rounded-2xl text-center space-y-2 border ${
+          isApprove ? "bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400" :
+          isReject ? "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400" :
+          "bg-yellow-500/10 border-yellow-500/20 text-yellow-700 dark:text-yellow-400"
+        }`}>
+          <h2 className="text-3xl tracking-tight uppercase font-medium">
+            {isApprove ? "BUY IT" : isReject ? "SKIP IT" : "MAYBE"}
+          </h2>
+          <p className="text-sm opacity-80">ROI Score: {v.roi_score}/100</p>
+        </div>
+        
+        <div className="space-y-3">
+          <h3 className="mono-label">Reasoning</h3>
+          <ul className="space-y-2">
+            {v.reasoning.map((r: string, i: number) => (
+              <li key={i} className="flex gap-2 text-sm items-start">
+                <span className="text-muted-foreground mt-0.5">•</span>
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        
+        <div className="surface p-4 space-y-3">
+          <h3 className="mono-label">Extracted Details</h3>
+          <div className="grid grid-cols-2 gap-y-2 text-sm">
+            <div className="text-muted-foreground">Item Name</div>
+            <div className="text-right truncate">{attrs.item_name}</div>
+            <div className="text-muted-foreground">Category</div>
+            <div className="text-right capitalize">{attrs.category}</div>
+            {attrs.material?.value && (
+              <>
+                <div className="text-muted-foreground">Material</div>
+                <div className="text-right capitalize">{attrs.material.value}</div>
+              </>
+            )}
+            {attrs.brand?.value && (
+              <>
+                <div className="text-muted-foreground">Brand</div>
+                <div className="text-right capitalize">{attrs.brand.value}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-4 flex flex-col items-center w-full">
+          <Btn onClick={() => { setVerdictData(null); setImage(""); }}>Done</Btn>
+          <button 
+            className="w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            onClick={async () => {
+              setVerdictData(null);
+              setMode("add");
+              await analyzeItem(image, context);
+            }}
+          >
+            Add to Wardrobe Anyway
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="screen-pad space-y-4 mx-auto max-w-2xl w-full">
       <ScreenHeader title="Scan Cloth" subtitle="AI Vision Analysis" onBack={back} />
+
+      <div className="flex gap-2 rounded-full border border-border p-1 text-sm bg-background/50 backdrop-blur-sm mx-auto w-fit mb-4">
+        <button
+          className={`rounded-full px-4 py-1.5 transition-colors ${mode === "add" ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => { setMode("add"); setVerdictData(null); }}
+        >
+          Add to Wardrobe
+        </button>
+        <button
+          className={`rounded-full px-4 py-1.5 transition-colors ${mode === "verify" ? "bg-primary text-primary-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => { setMode("verify"); setVerdictData(null); }}
+        >
+          Should I Buy This?
+        </button>
+      </div>
 
       <div className="surface flex min-h-[300px] items-center justify-center overflow-hidden text-center">
         {image ? (
@@ -55,19 +150,8 @@ export function CaptureScreen() {
         ) : (
           <div className="space-y-6 w-full p-6">
             <div className="text-4xl text-muted-foreground">□</div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="tap flex cursor-pointer flex-col items-center justify-center rounded-xl bg-secondary p-4 transition-colors hover:bg-accent">
-                <input
-                  hidden
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  capture="environment"
-                  disabled={isAnalyzing}
-                  onChange={(e) => onFile(e.target.files?.[0])}
-                />
-                <span className="mono-label">Take Photo</span>
-              </label>
-              <label className="tap flex cursor-pointer flex-col items-center justify-center rounded-xl bg-secondary p-4 transition-colors hover:bg-accent">
+            <div className="flex justify-center w-full">
+              <label className="tap flex cursor-pointer flex-col items-center justify-center rounded-xl bg-secondary w-full p-8 transition-colors hover:bg-accent border border-dashed border-border/50">
                 <input
                   hidden
                   type="file"
@@ -75,7 +159,7 @@ export function CaptureScreen() {
                   disabled={isAnalyzing}
                   onChange={(e) => onFile(e.target.files?.[0])}
                 />
-                <span className="mono-label">Upload Photo</span>
+                <span className="mono-label text-base tracking-widest uppercase">Upload Photo</span>
               </label>
             </div>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">JPG · PNG · WEBP</p>
@@ -101,7 +185,7 @@ export function CaptureScreen() {
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
             Analyzing with Gemini Vision...
           </div>
-        ) : "Analyze Cloth"}
+        ) : mode === "add" ? "Analyze & Save" : "Check If I Should Buy"}
       </Btn>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground">
